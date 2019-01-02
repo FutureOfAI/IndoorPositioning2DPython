@@ -15,7 +15,7 @@ import socket
 import threading
 
 ##### distance count of each Tag #####
-n_23=0
+n_23=1
 n_25=0
 n_26=0
 n_27=0
