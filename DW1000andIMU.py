@@ -488,14 +488,14 @@ def EKF_Update():
     ##$$$$$$$$$$$$$$$$$$$$$##
     EKF_Solution_Anc[0]=xpm_Nh
     EKF_Solution_Anc[1]=ypm_Nh
-    #print("########################",EKF_Solution_Anc[0],EKF_Solution_Anc[1])
-    print("EKF_Position:%.2f  %.2f  "%(EKF_Solution_Anc[0],EKF_Solution_Anc[1]))
-    ekf_x=np.arange(0,180)
-    ekf_y=np.sin(ekf_x * np.pi / 180.0)
+    print("########################",EKF_Solution_Anc[0],EKF_Solution_Anc[1])
+    #print("EKF_Position:%.2f  %.2f  "%(EKF_Solution_Anc[0],EKF_Solution_Anc[1]))
+    #ekf_x=np.arange(0,180)
+    #ekf_y=np.sin(ekf_x * np.pi / 180.0)
 
-    pylab.scatter(EKF_Solution_Anc[0],EKF_Solution_Anc[1],s=2)
-    pylab.xlim(0,10)
-    pylab.ylim(0,10)
+    pylab.scatter(EKF_Solution_Anc[0],EKF_Solution_Anc[1],s=0.5)
+    pylab.xlim(4.6,5)
+    pylab.ylim(6.7,7.0)
     pylab.xlabel("x-axis") 
     pylab.ylabel("y-axis") 
     pylab.title("EKF Position",fontsize=24) 
@@ -504,7 +504,7 @@ def EKF_Update():
     if n_ekf>20:
 	print("-----plot-----")
 	
-	pylab.savefig('ekf_finish.png')	
+	pylab.savefig('ekf5_finish.png')	
     	#print("EKF_Position:%.2f  %.2f  "%(EKF_Solution_Anc[0],EKF_Solution_Anc[1]))
     
 
