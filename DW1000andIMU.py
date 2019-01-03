@@ -13,9 +13,14 @@ import os.path
 import operator
 import socket
 import threading
+import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib.pyplot as plt
+import pylab
 
+n_ekf=0
 ##### distance count of each Tag #####
-n_23=1
+n_23=0
 n_25=0
 n_26=0
 n_27=0
@@ -286,7 +291,7 @@ def EKF_New():
 
 def EKF_Update():
     ##### IMU_MPU9250 #####
-    global dwm,Imu,state,xpm_Nh,ypm_Nh,xvm_Nh,yvm_Nh,xam_Nh,yam_Nh,wzm_h,bx_h,by_h,bz_h,psi_h,end_count,P00_z,u,select,count1,select_d,EKF_Solution_Anc,R,Xz_h,F_z,Q_z,bx_h_1,by_h_1,bz_h_1,psi_h_1,xpm_Nh_1,ypm_Nh_1,xvm_Nh_1,yvm_Nh_1,xam_Nh_1,yam_Nh_1
+    global n_ekf,dwm,Imu,state,xpm_Nh,ypm_Nh,xvm_Nh,yvm_Nh,xam_Nh,yam_Nh,wzm_h,bx_h,by_h,bz_h,psi_h,end_count,P00_z,u,select,count1,select_d,EKF_Solution_Anc,R,Xz_h,F_z,Q_z,bx_h_1,by_h_1,bz_h_1,psi_h_1,xpm_Nh_1,ypm_Nh_1,xvm_Nh_1,yvm_Nh_1,xam_Nh_1,yam_Nh_1
     a[0]=Imu[0] #acc_x
     a[1]=Imu[1] #acc_y
     a[2]=Imu[2] #gyro_z
@@ -303,7 +308,7 @@ def EKF_Update():
     spread_2D()
     xpm_Nh_2=Solution_Anc[0]
     ypm_Nh_2=Solution_Anc[1]
-   
+    
     if state == 1:
 
         bz_h = bz0
@@ -318,7 +323,7 @@ def EKF_Update():
             state = 2
 	    #print (xpm_Nh,ypm_Nh)
     if state == 2:
-	print("2222222")
+	#print("2222222")
         bx_h = bx_h_1
         by_h = by_h_1
         bz_h = bz_h_1
@@ -404,6 +409,7 @@ def EKF_Update():
     zxm_z[1] = d[1]-R2m_h
     zxm_z[2] = d[2]-R3m_h
     zxm_z[3] = d[3]-R4m_h
+    print("##################",d[0],d[1],d[2],d[3])
     ##### Mu Martix Data #####
     """"
     Y[0] = zxm_z[0]
@@ -478,12 +484,28 @@ def EKF_Update():
     select_d = 1
     count1 = 0
     end_count = end_count+1
-
+    
     ##$$$$$$$$$$$$$$$$$$$$$##
     EKF_Solution_Anc[0]=xpm_Nh
     EKF_Solution_Anc[1]=ypm_Nh
-    print("########################",EKF_Solution_Anc[0],EKF_Solution_Anc[1])
-    #print("EKF_Position:%.2f  %.2f  "%(EKF_Solution_Anc[0],EKF_Solution_Anc[1]))
+    #print("########################",EKF_Solution_Anc[0],EKF_Solution_Anc[1])
+    print("EKF_Position:%.2f  %.2f  "%(EKF_Solution_Anc[0],EKF_Solution_Anc[1]))
+    ekf_x=np.arange(0,180)
+    ekf_y=np.sin(ekf_x * np.pi / 180.0)
+
+    pylab.scatter(EKF_Solution_Anc[0],EKF_Solution_Anc[1],s=2)
+    pylab.xlim(0,10)
+    pylab.ylim(0,10)
+    pylab.xlabel("x-axis") 
+    pylab.ylabel("y-axis") 
+    pylab.title("EKF Position",fontsize=24) 
+    n_ekf=n_ekf+1
+
+    if n_ekf>20:
+	print("-----plot-----")
+	
+	pylab.savefig('ekf_finish.png')	
+    	#print("EKF_Position:%.2f  %.2f  "%(EKF_Solution_Anc[0],EKF_Solution_Anc[1]))
     
 
 
@@ -644,41 +666,9 @@ def spread_2D():
     print("Real_Position:%.2f  %.2f  "%(Y_2D[0],Y_2D[1]))
     print("Position:%.2f  %.2f  "%(Solution_Anc[0],Solution_Anc[1])) 
 """
-"""
-def spread_3D():
-
-    ######Tag-------Anchor-------Distance#####
-    r0=((X[0,0]-Y[0])**2 + (X[0,1]-Y[1])**2+(X[0,2]-Y[2])**2)**(0.5) #23
-    r1=((X[1,0]-Y[0])**2 + (X[1,1]-Y[1])**2+(X[1,2]-Y[2])**2)**(0.5) #25
-    r2=((X[2,0]-Y[0])**2 + (X[2,1]-Y[1])**2+(X[2,2]-Y[2])**2)**(0.5) #27
-    r3=((X[3,0]-Y[0])**2 + (X[3,1]-Y[1])**2+(X[3,2]-Y[2])**2)**(0.5) #26
-    print(r0, r1, r3, r2)
-    A=np.array([2*(X[0,0]-X[1,0]),2*(X[0,1]-X[1,1]),2*(X[0,2]-X[1,2]),2*(X[0,0]-X[2,0]),2*(X[0,1]-X[2,1]),2*(X[0,2]-X[2,2]),2*(X[0,0]-X[3,0]),2*(X[0,1]-X[3,1]),2*(X[0,2]-X[3,2])])
-    A=A.reshape([3,3])
-
-    #b=np.array([r1**2-r0**2+X[0,0]**2-X[1,0]**2+X[0,1]**2-X[1,1]**2+X[0,2]**2-X[1,2]**2,r2**2-r0**2+X[0,0]**2-X[2,0]**2+X[0,1]**2-X[2,1]**2+X[0,2]**2-X[2,2]**2,r3**2-r0**2+X[0,0]**2-X[3,0]**2+X[0,1]**2-X[3,$
-    b=np.array([6.172**2-4.75**2+X[0,0]**2-X[1,0]**2+X[0,1]**2-X[1,1]**2+X[0,2]**2-X[1,2]**2,9.874**2-4.75**2+X[0,0]**2-X[2,0]**2+X[0,1]**2-X[2,1]**2+X[0,2]**2-X[2,2]**2,9.437**2-4.75**2+X[0,0]**2-X[3,0]**2+$
-    #b=np.array([tag[1]**2-tag[0]**2+X[0,0]**2-X[1,0]**2+X[0,1]**2-X[1,1]**2+X[0,2]**2-X[1,2]**2,tag[3]**2-tag[0]**2+X[0,0]**2-X[2,0]**2+X[0,1]**2-X[2,1]**2+X[0,2]**2-X[2,2]**2,tag[2]**2-tag[0]**2+X[0,0]**2-$
-    #print(b)
-    B=np.linalg.inv(A)
-    #print(B)
-    Solution_Anc=B.dot(b)
-    #print(Y)
-    print("Real_Position:%.2f  %.2f  %.2f "%(Y[0],Y[1],Y[2]))
-    print("Position:%.2f  %.2f  %.2f "%(Solution_Anc[0],Solution_Anc[1],Solution_Anc[2]))
-"""
 
 
 
-"""
-def imu():
-	if imu.IMURead():
-            data = imu.getIMUData()
-            Gyro = Data["gyro"]
-            print(Gyro)
-            time.sleep(poll_interval*1.0/1000.0)
-            time.sleep(0.1)
-"""
 def loop():
     
     global sentAck,n_23,n_25,n_26,n_27, receivedAck, timePollAckSentTS, timePollReceivedTS, timePollSentTS, timePollAckReceivedTS, timeRangeReceivedTS, protocolFailed, data, expectedMsgId,expectedMsgID, timeRangeSentTS,Same_tag_flag,DistanceFinish_Flag,Position_Flag,EKF_start,EKF_message,EKF_New,EKF_Update
