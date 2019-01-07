@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 import pylab
 
 n_ekf=0
+n_ekf_start=0
 ##### distance count of each Tag #####
 n_23=0
 n_25=0
@@ -120,9 +121,9 @@ f.close()
 ###################################
 
 ####### EKF #######
-pi=3.14
-r2d = (180/pi)
-d2r = (pi/180)
+
+r2d = (180/math.pi)
+d2r = (math.pi/180)
 threshold_c =0.55
 g =9.8
 scale_factor_err = -0.0512
@@ -216,7 +217,7 @@ def spread_2D():
     Solution_Anc=B.dot(b)
 
 
-    print("Real_Position:%.2f  %.2f  "%(Y_2D[0],Y_2D[1]))
+    #print("Real_Position:%.2f  %.2f  "%(Y_2D[0],Y_2D[1]))
     print("2D_Position:%.2f  %.2f  "%(Solution_Anc[0],Solution_Anc[1]))
 
 def EKF_start():
@@ -229,15 +230,15 @@ def EKF_message():
     global P00_z,tag,fusionPose
     EKF_New()
     
-    Imu[0]=fusionPose[0]
-    Imu[1]=fusionPose[1]
-    Imu[2]=fusionPose[2]*d2r
+    Imu[0]=-fusionPose[0]
+    Imu[1]=-fusionPose[1]
+    Imu[2]=-fusionPose[2]*d2r
 
-    
+        
     dwm[0]=tag[0]
     dwm[1]=tag[1]
-    dwm[2]=tag[2]
-    dwm[3]=tag[3]
+    dwm[2]=tag[3]
+    dwm[3]=tag[2]
     EKF_Update()
     time.sleep(0.01)
 
@@ -263,7 +264,9 @@ def EKF_New():
     R=np.zeros([4,4])
     H=np.zeros([4,8])
     Xz_h=np.zeros([8,1])
-
+    tmp=np.zeros([8,8])
+    tmp_1=np.zeros([8,8])
+    tmpYX=np.zeros([1,8])
 ##### covariance matrix(P00_z=phi_z*P00_z*(phi_z')+Q_z*dt) #####
     P00_z[0,0] = xperr**2
     P00_z[2,2] = 1*bx0**2
@@ -274,7 +277,7 @@ def EKF_New():
 
 ##### Xz_h(xz_h=phi_z*xz_h) #####
     Xz_h[7,0] = bz0
-
+    
 ##### Q matrix -predict(P00_z=phi_z*P00_z*(phi_z')+Q_z*dt) #####
     Q_z=np.zeros([8,8])   
 ##### R matrix -measurement(H*P00_z*H'+R) #####
@@ -286,22 +289,23 @@ def EKF_New():
     S=np.zeros([4,4]) 
 ##### F matrix(P = (I+F*dt)*P*(I+F*dt)' + Q) #####
     F_z=np.zeros([8,8]) 
+    H_D=np.zeros([4,8])
 
     
 
 def EKF_Update():
     ##### IMU_MPU9250 #####
-    global n_ekf,dwm,Imu,state,xpm_Nh,ypm_Nh,xvm_Nh,yvm_Nh,xam_Nh,yam_Nh,wzm_h,bx_h,by_h,bz_h,psi_h,end_count,P00_z,u,select,count1,select_d,EKF_Solution_Anc,R,Xz_h,F_z,Q_z,bx_h_1,by_h_1,bz_h_1,psi_h_1,xpm_Nh_1,ypm_Nh_1,xvm_Nh_1,yvm_Nh_1,xam_Nh_1,yam_Nh_1
-    a[0]=Imu[0] #acc_x
-    a[1]=Imu[1] #acc_y
-    a[2]=Imu[2] #gyro_z
+    global n_ekf,dwm,Imu,state,xpm_Nh,ypm_Nh,xvm_Nh,yvm_Nh,xam_Nh,yam_Nh,wzm_h,bx_h,by_h,bz_h,psi_h,end_count,P00_z,tmp,tmp_1,tmp_YX,u,select,count1,select_d,EKF_Solution_Anc,R,Xz_h,F_z,Q_z,H_D,bx_h_1,by_h_1,bz_h_1,psi_h_1,xpm_Nh_1,ypm_Nh_1,xvm_Nh_1,yvm_Nh_1,xam_Nh_1,yam_Nh_1
+    a[0]=0 #acc_x
+    a[1]=0 #acc_y
+    a[2]=0 #gyro_z
     
     d[0]=dwm[0] #distance1
     d[1]=dwm[1] #distance2
     d[2]=dwm[2] #distance3
     d[3]=dwm[3] #distance4
-    
-    
+    #print("aaaaaa",a)    
+    #print("d",d)
     for i in range(0,4):
         if d[i]>150000:
             d[i]=d_1[i]
@@ -319,146 +323,199 @@ def EKF_Update():
             ypm_Nh = ypm_Nh_2
             xpm_Nh_1 = xpm_Nh
             ypm_Nh_1 = ypm_Nh
-	    print("1111111111111",xpm_Nh,ypm_Nh)
+	    #print("1111111111111",xpm_Nh,ypm_Nh)
             state = 2
 	    #print (xpm_Nh,ypm_Nh)
     if state == 2:
 	#print("2222222")
-        bx_h = bx_h_1
-        by_h = by_h_1
-        bz_h = bz_h_1
-        axm_h = a[0]-bx_h  #acc_x
-        aym_h = a[1]-by_h  #acc_y
-        axm_h_1 = a_1[0]- bx_h_1
-        aym_h_1 = a_1[1]- by_h_1
-        wzm_h_1 = (1-scale_factor_err)*(a_1[2] - bz_h_1)
-        wzm_h = (1-scale_factor_err)*(a[2] - bz_h_1)
-        psi_h = psi_h_1 +(wzm_h_1+wzm_h)*dt/2.0
-        xam_Nh = np.cos(psi_h_1)*axm_h_1 - np.sin(psi_h_1)*aym_h_1 - wzm_h_1*yvm_Nh_1
-        yam_Nh = np.sin(psi_h_1)*axm_h_1 + np.cos(psi_h_1)*aym_h_1 + wzm_h_1*xvm_Nh_1
-        xvm_Nh = xvm_Nh_1 + (xam_Nh+xam_Nh_1)*dt/2
-        yvm_Nh = yvm_Nh_1 + (yam_Nh+yam_Nh_1)*dt/2
-        xpm_Nh = xpm_Nh_1 + (xvm_Nh+xvm_Nh_1)*dt/2
-        ypm_Nh = ypm_Nh_1 + (yvm_Nh+yvm_Nh_1)*dt/2
-           
-        F_z[0,1] = 1
-        F_z[1,2] = -np.cos(psi_h_1)
-        F_z[1,4] = -wzm_h_1
-        F_z[1,5] = np.sin(psi_h_1)
-        F_z[1,6] = 0*(-np.sin(psi_h_1)*(axm_h_1)-np.cos(psi_h_1)*(aym_h_1))
-        F_z[1,7] = 0*(yvm_Nh_1)
-        F_z[3,4] = 1
-        F_z[4,1] = wzm_h_1
-        F_z[4,2] = -np.sin(psi_h_1)
-        F_z[4,5] = -np.cos(psi_h_1)
-        F_z[4,6] = 0*(np.cos(psi_h_1)*(axm_h_1)-np.sin(psi_h_1)*(aym_h_1))    
-        F_z[4,7] = 0*(-xvm_Nh_1)
-        F_z[6,7]= -1
-        I=np.eye(8)
-        phi_z = I+(F_z*dt)
-        Q_z[1,1] = (np.cos(psi_h_1))*(np.cos(psi_h_1))*sig_bx**2 + (np.sin(psi_h_1))*(np.sin(psi_h_1))*sig_by**2 + yvm_Nh_1*(yvm_Nh_1)*sig_arw_0**2
-        Q_z[2,2] = sig_xr**2
-        Q_z[4,4] = (np.sin(psi_h_1))*(np.sin(psi_h_1))*sig_bx**2 + (np.cos(psi_h_1))*(np.cos(psi_h_1))*sig_by**2 + xvm_Nh_1*(xvm_Nh_1)*sig_arw_0**2
-        Q_z[5,5] = sig_yr**2
-        Q_z[6,6] = 1*sig_arw_0**2
-        Q_z[7,7] = 1*sig_rrw_0**2  
-        Xz_h=phi_z.dot(Xz_h)
-        P00_z=phi_z.dot(P00_z).dot(phi_z.T)+Q_z*dt
-        if select ==1:
-            a[0]=-fusionPose[0] #acc_x
-            a[1]=-fusionPose[1] #acc_y
-            a[2]=-fusionPose[2]*d2r #gyro_z
-            a_1[0]=a[0]
-            a_1[1]=a[1]
-            a_1[2]=a[2]
-            bx_h_1 = bx_h
-            by_h_1 = by_h
-            bz_h_1 = bz_h
-            xam_Nh_1 = xam_Nh
-            yam_Nh_1 = yam_Nh
-            xvm_Nh_1 = xvm_Nh
-            yvm_Nh_1 = yvm_Nh
-            xpm_Nh_1 = xpm_Nh
-            ypm_Nh_1 = ypm_Nh
-            psi_h_1 = psi_h
-            wzm_h_1 = wzm_h
-            u = u +1
-            select = 2     
-    ###### IMU Estimate four Distances #####
-    R1m_h = ((X[0,0]-xpm_Nh)**2+(X[0,1]-ypm_Nh)**2+(X[0,2]-1.32)**2)**(0.5)
-    R2m_h = ((X[1,0]-xpm_Nh)**2+(X[1,1]-ypm_Nh)**2+(X[1,2]-1.32)**2)**(0.5)
-    R3m_h = ((X[2,0]-xpm_Nh)**2+(X[2,1]-ypm_Nh)**2+(X[2,2]-1.32)**2)**(0.5)
-    R4m_h = ((X[3,0]-xpm_Nh)**2+(X[3,1]-ypm_Nh)**2+(X[3,2]-1.32)**2)**(0.5)    
-    ##### H Matrix Residual Calculator #####
-    r1_partial_x =-(X[0,0]-xpm_Nh)/R1m_h
-    r1_partial_y =-(X[0,1]-ypm_Nh)/R1m_h
-    r2_partial_x =-(X[1,0]-xpm_Nh)/R2m_h 
-    r2_partial_y =-(X[1,1]-ypm_Nh)/R2m_h
-    r3_partial_x =-(X[2,0]-xpm_Nh)/R3m_h
-    r3_partial_y =-(X[2,1]-ypm_Nh)/R3m_h
-    r4_partial_x =-(X[3,0]-xpm_Nh)/R4m_h 
-    r4_partial_y =-(X[3,1]-ypm_Nh)/R4m_h
-    ##### H Matrix Data #####
-    H=np.array([r1_partial_x,0,0,r1_partial_y,0,0,0,0,r2_partial_x,0,0,r2_partial_y,0,0,0,0,r3_partial_x,0,0,r3_partial_y,0,0,0,0,r4_partial_x,0,0,r4_partial_y,0,0,0,0])
-    H=H.reshape([4,8])
+	for j in range(0,2):
+            bx_h = bx_h_1
+            by_h = by_h_1
+            bz_h = bz_h_1
+            axm_h = a[0]-bx_h  #acc_x
+            aym_h = a[1]-by_h  #acc_y
+            axm_h_1 = a_1[0]- bx_h_1
+            aym_h_1 = a_1[1]- by_h_1
+            wzm_h_1 = (1-scale_factor_err)*(a_1[2] - bz_h_1)
+            wzm_h = (1-scale_factor_err)*(a[2] - bz_h_1)
+            psi_h = psi_h_1 +(wzm_h_1+wzm_h)*dt/2.0
+            xam_Nh = np.cos(psi_h_1)*axm_h_1 - np.sin(psi_h_1)*aym_h_1 - wzm_h_1*yvm_Nh_1
+            yam_Nh = np.sin(psi_h_1)*axm_h_1 + np.cos(psi_h_1)*aym_h_1 + wzm_h_1*xvm_Nh_1
+            xvm_Nh = xvm_Nh_1 + (xam_Nh+xam_Nh_1)*dt/2
+            yvm_Nh = yvm_Nh_1 + (yam_Nh+yam_Nh_1)*dt/2
+            xpm_Nh = xpm_Nh_1 + (xvm_Nh+xvm_Nh_1)*dt/2
+            ypm_Nh = ypm_Nh_1 + (yvm_Nh+yvm_Nh_1)*dt/2
+            #print("test",xpm_Nh,ypm_Nh,xvm_Nh,xvm_Nh_1)   
 
-    ###### Kalman_Filter_update_8_4_radio ######
-    zxm_z=[0]*4
-    ##### Real Distance - Esitmate Distance #####
-    zxm_z[0] = d[0]-R1m_h
-    zxm_z[1] = d[1]-R2m_h
-    zxm_z[2] = d[2]-R3m_h
-    zxm_z[3] = d[3]-R4m_h
-    print("##################",d[0],d[1],d[2],d[3])
-    ##### Mu Martix Data #####
-    """"
-    Y[0] = zxm_z[0]
-    Y[1] = zxm_z[1]
-    Y[2] = zxm_z[2]
-    Y[3] = zxm_z[3]
-    """
-    Y=np.array([zxm_z[0],zxm_z[1],zxm_z[2],zxm_z[3]])
-    for i in range(0,4):
-        if end_count> 1500 :
-            if (zxm_z[i]*zxm_z[i])**0.5< threshold_c:
-                P00_z = np.zeros([8,8])
-    		P00_z[0,0] = xperr**2
-    		P00_z[2,2] = 1*bx0**2
-    		P00_z[3,3] = yperr**2
-    		P00_z[5,5] = 1*by0**2
-    		P00_z[6,6] = (1*psierr*d2r)**2
-    		P00_z[7,7] =100* bz0**2
-		K_z_help=np.zeros([4,4])
-		K_z_help=1/((H.dot(P00_z)).dot(H.T)+R)
-                K_z=P00_z.dot(H.T).dot(K_z_help)  
-                I=np.eye(8)
-                P00_z=(I-K_z.dot(H)).dot(P00_z) 
-            else:
-                K_z=np.zeros([8,8])  
-                I=np.eye(8)
-                P00_z=(I-K_z.dot(H)).dot(P00_z)    
-                count1 = count1+1
-        else:
-	    K_z_help=np.zeros([4,4])
-            K_z=P00_z.dot(H.T).dot(K_z_help)  
-        
+
+            F_z[0,1] = 1
+            F_z[1,2] = -np.cos(psi_h_1)
+            F_z[1,4] = -wzm_h_1
+            F_z[1,5] = np.sin(psi_h_1)
+            F_z[1,6] = 0*(-np.sin(psi_h_1)*(axm_h_1)-np.cos(psi_h_1)*(aym_h_1))
+            F_z[1,7] = 0*(yvm_Nh_1)
+            F_z[3,4] = 1
+            F_z[4,1] = wzm_h_1
+            F_z[4,2] = -np.sin(psi_h_1)
+            F_z[4,5] = -np.cos(psi_h_1)
+            F_z[4,6] = 0*(np.cos(psi_h_1)*(axm_h_1)-np.sin(psi_h_1)*(aym_h_1))    
+            F_z[4,7] = 0*(-xvm_Nh_1)
+            F_z[6,7]= -1
             I=np.eye(8)
-            P00_z=(I-K_z.dot(H)).dot(P00_z) 
-        Mu_z=Y
-        Mu_z=Mu_z.reshape([4,1])
-        z_update =np.zeros([8,1])
-        z_update = K_z.dot(Mu_z)
-        select_d = 0
+            phi_z = I+(F_z*dt)
+            Q_z[1,1] = (np.cos(psi_h_1))*(np.cos(psi_h_1))*(sig_bx**2) + (np.sin(psi_h_1))*(np.sin(psi_h_1))*(sig_by**2) + (yvm_Nh_1*yvm_Nh_1)*(sig_arw_0**2)
+            Q_z[2,2] = sig_xr**2
+            Q_z[4,4] = (np.sin(psi_h_1))*(np.sin(psi_h_1))*(sig_bx**2) + (np.cos(psi_h_1))*(np.cos(psi_h_1))*(sig_by**2) + (xvm_Nh_1*xvm_Nh_1)*(sig_arw_0**2)
+            Q_z[5,5] = sig_yr**2
+            Q_z[6,6] = 1*sig_arw_0**2
+            Q_z[7,7] = 1*sig_rrw_0**2  
+            Xz_h=phi_z.dot(Xz_h)
+	    #print("789",P00_z)
+            if select==1:
+	    	tmp_1=phi_z.dot(P00_z)
+	    else:
+	    	tmp_1=phi_z.dot(tmp)	
+	    #print(tmp_1)
+            tmp=tmp_1.dot(phi_z.T)+Q_z*dt
+            #print("1",tmp)	
+            if select ==1:
+                a[0]=0 #acc_x
+                a[1]=0 #acc_y
+                a[2]=0 #gyro_z
+                a_1[0]=a[0]
+            	a_1[1]=a[1]
+            	a_1[2]=a[2]
+            	bx_h_1 = bx_h
+            	by_h_1 = by_h
+            	bz_h_1 = bz_h
+            	xam_Nh_1 = xam_Nh
+            	yam_Nh_1 = yam_Nh
+            	xvm_Nh_1 = xvm_Nh
+            	yvm_Nh_1 = yvm_Nh
+            	xpm_Nh_1 = xpm_Nh
+            	ypm_Nh_1 = ypm_Nh
+	    	#print("test",xpm_Nh,ypm_Nh)
+            	psi_h_1 = psi_h
+            	wzm_h_1 = wzm_h
+            	u = u +1
+            	select = 2     
+        ###### IMU Estimate four Distances #####
+	"""
+    	R1m_h = ((X[0,0]-xpm_Nh)**2+(X[0,1]-ypm_Nh)**2)**(0.5)
+    	R2m_h = ((X[1,0]-xpm_Nh)**2+(X[1,1]-ypm_Nh)**2)**(0.5)
+    	R3m_h = ((X[2,0]-xpm_Nh)**2+(X[2,1]-ypm_Nh)**2)**(0.5)
+    	R4m_h = ((X[3,0]-xpm_Nh)**2+(X[3,1]-ypm_Nh)**2)**(0.5)
+    	"""
+
+    	R1m_h = ((X[0,0]-xpm_Nh)**2+(X[0,1]-ypm_Nh)**2+(X[0,2]-1.32)**2)**(0.5)
+    	R2m_h = ((X[1,0]-xpm_Nh)**2+(X[1,1]-ypm_Nh)**2+(X[1,2]-1.32)**2)**(0.5)
+    	R3m_h = ((X[2,0]-xpm_Nh)**2+(X[2,1]-ypm_Nh)**2+(X[2,2]-1.32)**2)**(0.5)
+    	R4m_h = ((X[3,0]-xpm_Nh)**2+(X[3,1]-ypm_Nh)**2+(X[3,2]-1.32)**2)**(0.5)    
+    	
+    	#print("imu",R1m_h,R2m_h,R3m_h,R4m_h)
+    	##### H Matrix Residual Calculator #####
+    	r1_partial_x = 0
+    	r1_partial_y = 0
+    	r2_partial_x = 0 
+    	r2_partial_y = 0 
+    	r3_partial_x = 0 
+    	r3_partial_y = 0 
+    	r4_partial_x = 0 
+    	r4_partial_y = 0
+    	r1_partial_x =-(X[0,0]-xpm_Nh)/R1m_h
+    	r1_partial_y =-(X[0,1]-ypm_Nh)/R1m_h
+    	r2_partial_x =-(X[1,0]-xpm_Nh)/R2m_h 
+    	r2_partial_y =-(X[1,1]-ypm_Nh)/R2m_h
+    	r3_partial_x =-(X[2,0]-xpm_Nh)/R3m_h
+    	r3_partial_y =-(X[2,1]-ypm_Nh)/R3m_h
+    	r4_partial_x =-(X[3,0]-xpm_Nh)/R4m_h 
+    	r4_partial_y =-(X[3,1]-ypm_Nh)/R4m_h
+    	##### H Matrix Data #####
+    	H=np.array([r1_partial_x,0,0,r1_partial_y,0,0,0,0,r2_partial_x,0,0,r2_partial_y,0,0,0,0,r3_partial_x,0,0,r3_partial_y,0,0,0,0,r4_partial_x,0,0,r4_partial_y,0,0,0,0])
+    	H=H.reshape([4,8])
+
+    	###### Kalman_Filter_update_8_4_radio ######
+    	zxm_z=[0]*4
+    	##### Real Distance - Esitmate Distance #####
+    	zxm_z[0] = d[0]-R1m_h
+    	zxm_z[1] = d[1]-R2m_h
+    	zxm_z[2] = d[2]-R3m_h
+    	zxm_z[3] = d[3]-R4m_h
+    	#print("dddddd",zxm_z)
     
-    xpm_Nh=xpm_Nh+z_update[0,0]
-    xvm_Nh=xvm_Nh+z_update[1,0]
-    bx_h = bx_h + z_update[2,0]
-    ypm_Nh=ypm_Nh+z_update[3,0]
-    yvm_Nh=yvm_Nh+z_update[4,0]
-    by_h= by_h + z_update[5,0]
-    psi_h=psi_h+z_update[6,0]
-    bz_h=bz_h+z_update[7,0] 
-    Xz_h=np.zeros([8,1])
+    	#print("##################",d[0],d[1],d[2],d[3])
+    	##### Mu Martix Data #####
+    
+    	Y=np.array([zxm_z[0],zxm_z[1],zxm_z[2],zxm_z[3]])
+    	k=0
+    	l=0
+    	z_update=np.zeros([8,1])
+    	H_D=np.zeros([1,8])
+    	K_z_help=[0]*1
+    	tmpXY=np.zeros([8,1])
+    	Mu_z=Y.reshape([4,1])
+	K_z=np.zeros([8,1])
+    	I=np.eye(8)
+	n_h=0
+        for i in range(0,4):
+            if end_count> 15 :
+                if (zxm_z[i]*zxm_z[i])**0.5< threshold_c:
+                    for j in range(0,8):
+
+                        H_D[0,j]=H[i,j]
+                    if select_d==1:
+                        tmpYX=H_D.dot(tmp)
+                    else:
+                        tmp=P00_z.dot(I)
+                        tmpYX=H_D.dot(tmp)
+		    K_z_help=tmpYX.dot(H_D.T)
+                    K_z_help[0]=1/(K_z_help[0]+R[i,i])
+                    tmpXY=tmp.dot(H_D.T)
+                    K_z=tmpXY*(K_z_help)
+                    P00_z=(I-K_z.dot(H_D)).dot(tmp)
+		    #print("sucess")
+	    	else:
+		    for j in range(0,8):
+
+                        H_D[0,j]=H[i,j]
+
+                    K_z=np.zeros([8,1])
+		    P00_z=(I-K_z.dot(H_D)).dot(tmp)
+                    count1 = count1+1
+	    else:
+		for j in range(0,8):
+                #for i in range(0,3):
+
+                   H_D[0,j]=H[i,j]
+		   #print(H_D)
+                if select_d==1: 
+                    tmpYX=H_D.dot(tmp)
+
+                else:
+		    n_h=n_h+1
+		    #print(n_h)
+                    tmp=P00_z.dot(I)
+                    tmpYX=H_D.dot(tmp)
+
+		K_z_help=tmpYX.dot(H_D.T)
+                K_z_help[0]=1/(K_z_help[0]+R[i,i])
+                tmpXY=tmp.dot(H_D.T)
+                K_z=tmpXY*(K_z_help)
+		#print(K_z)
+                P00_z=(I-K_z.dot(H_D)).dot(tmp)
+		#print(H_D)
+            z_update=K_z*Y[i]+z_update
+	    select_d = 0
+        #print(z_update) 
+    	xpm_Nh=xpm_Nh+z_update[0,0]
+    	xvm_Nh=xvm_Nh+z_update[1,0]
+    	bx_h = bx_h + z_update[2,0]
+    	ypm_Nh=ypm_Nh+z_update[3,0]
+    	yvm_Nh=yvm_Nh+z_update[4,0]
+    	by_h= by_h + z_update[5,0]
+    	psi_h=psi_h+z_update[6,0]
+    	bz_h=bz_h+z_update[7,0] 
+    	Xz_h=np.zeros([8,1])
     a_1[0] = a[0]
     a_1[1] = a[1]
     a_1[2] = a[2]
@@ -488,7 +545,7 @@ def EKF_Update():
     ##$$$$$$$$$$$$$$$$$$$$$##
     EKF_Solution_Anc[0]=xpm_Nh
     EKF_Solution_Anc[1]=ypm_Nh
-    print("########################",EKF_Solution_Anc[0],EKF_Solution_Anc[1])
+    print("EKF_Position:",EKF_Solution_Anc[0],EKF_Solution_Anc[1])
     #print("EKF_Position:%.2f  %.2f  "%(EKF_Solution_Anc[0],EKF_Solution_Anc[1]))
     #ekf_x=np.arange(0,180)
     #ekf_y=np.sin(ekf_x * np.pi / 180.0)
@@ -502,7 +559,7 @@ def EKF_Update():
     n_ekf=n_ekf+1
 
     if n_ekf>20:
-	print("-----plot-----")
+	#print("-----plot-----")
 	
 	pylab.savefig('ekf5_finish.png')	
     	#print("EKF_Position:%.2f  %.2f  "%(EKF_Solution_Anc[0],EKF_Solution_Anc[1]))
@@ -671,7 +728,7 @@ def spread_2D():
 
 def loop():
     
-    global sentAck,n_23,n_25,n_26,n_27, receivedAck, timePollAckSentTS, timePollReceivedTS, timePollSentTS, timePollAckReceivedTS, timeRangeReceivedTS, protocolFailed, data, expectedMsgId,expectedMsgID, timeRangeSentTS,Same_tag_flag,DistanceFinish_Flag,Position_Flag,EKF_start,EKF_message,EKF_New,EKF_Update
+    global sentAck,n_ekf_start,n_23,n_25,n_26,n_27, receivedAck, timePollAckSentTS, timePollReceivedTS, timePollSentTS, timePollAckReceivedTS, timeRangeReceivedTS, protocolFailed, data, expectedMsgId,expectedMsgID, timeRangeSentTS,Same_tag_flag,DistanceFinish_Flag,Position_Flag,EKF_start,EKF_message,EKF_New,EKF_Update
 
     if Position_Flag==0:
         
@@ -679,9 +736,9 @@ def loop():
             global fusionPose
             Data = imu.getIMUData()
             fusionPose = Data["accel"]
-            #print(fusionPose)
-	    #time.sleep(poll_interval*1.0/1000.0)
-            time.sleep(0.1)
+            #print("fffff",fusionPose)
+	    time.sleep(poll_interval*1.0/1000.0)
+            #time.sleep(0.1)
 
 
         if (sentAck == False and receivedAck == False):
@@ -732,41 +789,45 @@ def loop():
                             print("Tag: %.2d"%(data[16]))
                             print("Distance1: %.2f m" %(distance))
                             n_23=n_23+1
-                            tag[0]=((n_23-1)*tag[0]+distance)/n_23
-                            print(n_23)
+			    if distance <12:
+                            #tag[0]=((n_23-1)*tag[0]+distance)/n_23
+			    	tag[0]=distance
+                            #print(n_23)
                     	if data[16]==25:
                             print("Tag: %.2d"%(data[16]))
                             print("Distance2: %.2f m" %(distance))
                             n_25=n_25+1
-                            tag[1]=((n_25-1)*tag[1]+distance)/n_25
-
+                            if distance <12:
+                            #tag[1]=((n_25-1)*tag[1]+distance)/n_25
+			    	tag[1]=distance	
                         if data[16]==26:
                             print("Tag: %.2d"%(data[16]))
                             print("Distance3: %.2f m" %(distance))
                             n_26=n_26+1
-                            tag[2]=((n_26-1)*tag[2]+distance)/n_26
-
+                            if distance <12:
+                            #tag[2]=((n_26-1)*tag[2]+distance)/n_26
+			    	tag[2]=distance
                         if data[16]==27:
                             print("Tag: %.2d"%(data[16]))
                             print("Distance4: %.2f m" %(distance))
                             n_27=n_27+1
-                            tag[3]=((n_27-1)*tag[3]+distance)/n_27
-
+                            if distance <12:
+                            #tag[3]=((n_27-1)*tag[3]+distance)/n_27
+			    	tag[3]=distance
 
 
                         if tag[0] !=0 and tag[1]!=0 and tag[2] !=0 and tag[3]!=0:
-                            print(tag)
+                            #print("tag",tag)
                             #spread_2D()
 			    EKF_start()
+			    n_ekf_start=n_ekf_start+1
+			    print(n_ekf_start)
+		   	    	
                             #print("success")
                         
                 if n_23 >=5 and n_25 >=5 and n_26 >=5 and n_27 >=5:
-	            	#print("transmit TAG")
-
-                    	#print(n_23)
-	 	    	#print(timePollReceivedTS)
-		    	#timePollReceivedTS = DW1000.getReceiveTimestamp()
-                 #os.system("python ./DW1000RangingTAG.py")
+	            #print("transmit TAG")
+                    #os.system("python ./DW1000RangingTAG.py")
                     Position_Flag=0
 
                 else:
@@ -833,14 +894,6 @@ try:
     noteActivity()
     
     while 1: 
-	"""
-        if imu.IMURead():
-            data = imu.getIMUData()
-            Gyro = data["gyro"]
-            print(Gyro)
-            #time.sleep(poll_interval*1.0/1000.0)
-            #time.sleep(0.1)        	
-	"""
         loop()
 
 except KeyboardInterrupt:
