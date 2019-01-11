@@ -17,9 +17,12 @@ import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 import pylab
-
-n_ekf=0
-n_ekf_start=0
+gyro_count=0
+gyro_array=[0]*1000
+x_array=[0]*300
+y_array=[0]*300
+#n_ekf=0
+#n_ekf_start=0
 ##### distance count of each Tag #####
 n_23=0
 n_25=0
@@ -38,7 +41,7 @@ Y=(0,5.64,2.73)
 
 ##### Flag #####
 DistanceFinish_Flag=0
-Position_Flag=0
+Position_Flag=1
 Same_tag_flag=0
 ###############
 
@@ -227,12 +230,12 @@ def EKF_start():
     #t2.start()
 
 def EKF_message():
-    global P00_z,tag,fusionPose
+    global P00_z,tag,fusionPose,Gyro
     EKF_New()
     
-    Imu[0]=-fusionPose[0]
+    Imu[0]=fusionPose[0]
     Imu[1]=-fusionPose[1]
-    Imu[2]=-fusionPose[2]*d2r
+    Imu[2]=Gyro[2]
 
         
     dwm[0]=tag[0]
@@ -296,9 +299,9 @@ def EKF_New():
 def EKF_Update():
     ##### IMU_MPU9250 #####
     global n_ekf,dwm,Imu,state,xpm_Nh,ypm_Nh,xvm_Nh,yvm_Nh,xam_Nh,yam_Nh,wzm_h,bx_h,by_h,bz_h,psi_h,end_count,P00_z,tmp,tmp_1,tmp_YX,u,select,count1,select_d,EKF_Solution_Anc,R,Xz_h,F_z,Q_z,H_D,bx_h_1,by_h_1,bz_h_1,psi_h_1,xpm_Nh_1,ypm_Nh_1,xvm_Nh_1,yvm_Nh_1,xam_Nh_1,yam_Nh_1
-    a[0]=0 #acc_x
-    a[1]=0 #acc_y
-    a[2]=0 #gyro_z
+    a[0]=Imu[0] #acc_x
+    a[1]=Imu[1] #acc_y
+    a[2]=Imu[2] #gyro_z
     
     d[0]=dwm[0] #distance1
     d[1]=dwm[1] #distance2
@@ -379,9 +382,9 @@ def EKF_Update():
             tmp=tmp_1.dot(phi_z.T)+Q_z*dt
             #print("1",tmp)	
             if select ==1:
-                a[0]=0 #acc_x
-                a[1]=0 #acc_y
-                a[2]=0 #gyro_z
+                a[0]=Imu[0] #acc_x
+                a[1]=Imu[1] #acc_y
+                a[2]=Imu[2] #gyro_z
                 a_1[0]=a[0]
             	a_1[1]=a[1]
             	a_1[2]=a[2]
@@ -540,30 +543,44 @@ def EKF_Update():
     select = 1
     select_d = 1
     count1 = 0
-    end_count = end_count+1
+    #end_count = end_count+1
     
     ##$$$$$$$$$$$$$$$$$$$$$##
     EKF_Solution_Anc[0]=xpm_Nh
     EKF_Solution_Anc[1]=ypm_Nh
-    print("EKF_Position:",EKF_Solution_Anc[0],EKF_Solution_Anc[1])
-    #print("EKF_Position:%.2f  %.2f  "%(EKF_Solution_Anc[0],EKF_Solution_Anc[1]))
+    #print("EKF_Position:",EKF_Solution_Anc[0],EKF_Solution_Anc[1])
+    print("EKF_Position:%.2f  %.2f  "%(EKF_Solution_Anc[0],EKF_Solution_Anc[1]))
+    x_array[end_count]=EKF_Solution_Anc[0]
+    y_array[end_count]=EKF_Solution_Anc[1]
+    end_count = end_count+1
+    #if end_count>15:
+	#x_array[end_count]=EKF_Solution_Anc[0]
+        #y_array[end_count]=EKF_Solution_Anc[1]
+	
+    #print(psi_h)    
     #ekf_x=np.arange(0,180)
     #ekf_y=np.sin(ekf_x * np.pi / 180.0)
 
-    pylab.scatter(EKF_Solution_Anc[0],EKF_Solution_Anc[1],s=0.5)
-    pylab.xlim(4.6,5)
-    pylab.ylim(6.7,7.0)
-    pylab.xlabel("x-axis") 
-    pylab.ylabel("y-axis") 
-    pylab.title("EKF Position",fontsize=24) 
-    n_ekf=n_ekf+1
+    #pylab.scatter(EKF_Solution_Anc[0],EKF_Solution_Anc[1],s=0.5)
+   
+    #pylab.scatter(end_count,Gyro[2])
 
-    if n_ekf>20:
-	#print("-----plot-----")
-	
-	pylab.savefig('ekf5_finish.png')	
-    	#print("EKF_Position:%.2f  %.2f  "%(EKF_Solution_Anc[0],EKF_Solution_Anc[1]))
+    #pylab.xlim(4.8,5)
+    #pylab.ylim(6.5,6.7)
+    #pylab.xlabel("x-axis") 
+    #pylab.ylabel("y-axis") 
+    #pylab.title("EKF Position",fontsize=24) 
     
+    #print(end_count)
+    
+    if end_count==216:
+	print("------------------save-------------------")
+        np.savetxt('data_straight.csv',(x_array,y_array) , delimiter=',')
+        #np.savetxt('data_straight.csv',(x_array,y_array) , delimiter=',')
+
+	#pylab.savefig('ekf_sucess.png')	
+    
+	#end_count=1    
 
 
 
@@ -698,45 +715,32 @@ def computeRangeAsymmetric():
     round2 = DW1000.wrapTimestamp(timeRangeReceivedTS - timePollAckSentTS)
     reply2 = DW1000.wrapTimestamp(timeRangeSentTS - timePollAckReceivedTS)
     timeComputedRangeTS = (round1 * round2 - reply1 * reply2) / (round1 + round2 + reply1 + reply2)
-"""
-def spread_2D():
 
-
-    ######Tag-------Anchor-------Distance#####
-    r0=((X_2D[0,0]-Y_2D[0])**2 + (X_2D[0,1]-Y_2D[1])**2)**(0.5) #23
-    r1=((X_2D[1,0]-Y_2D[0])**2 + (X_2D[1,1]-Y_2D[1])**2)**(0.5) #25
-    r2=((X_2D[2,0]-Y_2D[0])**2 + (X_2D[2,1]-Y_2D[1])**2)**(0.5) #27
-
-    print(r0, r1, r2)
-    A=np.array([2*(X_2D[0,0]-X_2D[1,0]),2*(X_2D[0,1]-X_2D[1,1]),2*(X_2D[0,0]-X_2D[2,0]),2*(X_2D[0,1]-X_2D[2,1])])
-    A=A.reshape([2,2])
-
-    #b=np.array([r1**2-r0**2+X[0,0]**2-X[1,0]**2+X[0,1]**2-X[1,1]**2+X[0,2]**2-X[1,2]**2,r2**2-r0**2+X[0,0]**2-X[2,0]**2+X[0,1]**2-X[2,1]**2+X[0,2]**2-X[2,2]**2,r3**2-r0**2+X[0,0]**2-X[3,0]**2+X[0,1]**2-X[3,$
-    #b=np.array([6.172**2-4.75**2+X[0,0]**2-X[1,0]**2+X[0,1]**2-X[1,1]**2+X[0,2]**2-X[1,2]**2,9.874**2-4.75**2+X[0,0]**2-X[2,0]**2+X[0,1]**2-X[2,1]**2+X[0,2]**2-X[2,2]**2,9.437**2-4.75**2+X[0,0]**2-X[3,0]**2$
-    b=np.array([tag[1]**2-tag[0]**2+X_2D[0,0]**2-X_2D[1,0]**2+X_2D[0,1]**2-X_2D[1,1]**2,tag[3]**2-tag[0]**2+X_2D[0,0]**2-X_2D[2,0]**2+X_2D[0,1]**2-X_2D[2,1]**2])
-    
-    B=np.linalg.inv(A)
-   
-    Solution_Anc=B.dot(b)
-    
-
-    print("Real_Position:%.2f  %.2f  "%(Y_2D[0],Y_2D[1]))
-    print("Position:%.2f  %.2f  "%(Solution_Anc[0],Solution_Anc[1])) 
-"""
 
 
 
 def loop():
     
-    global sentAck,n_ekf_start,n_23,n_25,n_26,n_27, receivedAck, timePollAckSentTS, timePollReceivedTS, timePollSentTS, timePollAckReceivedTS, timeRangeReceivedTS, protocolFailed, data, expectedMsgId,expectedMsgID, timeRangeSentTS,Same_tag_flag,DistanceFinish_Flag,Position_Flag,EKF_start,EKF_message,EKF_New,EKF_Update
+    global gyro_array,gyro_count,sentAck,n_ekf_start,n_23,n_25,n_26,n_27, receivedAck, timePollAckSentTS, timePollReceivedTS, timePollSentTS, timePollAckReceivedTS, timeRangeReceivedTS, protocolFailed, data, expectedMsgId,expectedMsgID, timeRangeSentTS,Same_tag_flag,DistanceFinish_Flag,Position_Flag,EKF_start,EKF_message,EKF_New,EKF_Update
 
     if Position_Flag==0:
         
         if imu.IMURead():
-            global fusionPose
+            global fusionPose,Gyro
             Data = imu.getIMUData()
             fusionPose = Data["accel"]
-            #print("fffff",fusionPose)
+	    Gyro = Data["gyro"]
+	    #gyro_array[gyro_count]=Gyro[2]
+	    #gyro_count=gyro_count+1
+	    #print(Gyro[2])
+	    
+	    #plt.plot(gyro_count,Gyro[2],'r--')
+	    #if gyro_count==800:
+	 	#print("sucess")
+		#np.savetxt('data.csv',gyro_array , delimiter=',')
+            	#plt.savefig('gyro.png')
+		#pylab.close()
+            #print("fffff",fusionPose[0],fusionPose[1])
 	    time.sleep(poll_interval*1.0/1000.0)
             #time.sleep(0.1)
 
@@ -781,10 +785,7 @@ def loop():
                     	computeRangeAsymmetric()
                     	transmitRangeAcknowledge()
                     	distance = (timeComputedRangeTS % C.TIME_OVERFLOW) * C.DISTANCE_OF_RADIO
-            		
-        
-        
-                    
+
                     	if data[16]==23:
                             print("Tag: %.2d"%(data[16]))
                             print("Distance1: %.2f m" %(distance))
@@ -817,14 +818,13 @@ def loop():
 
 
                         if tag[0] !=0 and tag[1]!=0 and tag[2] !=0 and tag[3]!=0:
-                            #print("tag",tag)
-                            #spread_2D()
+
+
 			    EKF_start()
-			    n_ekf_start=n_ekf_start+1
-			    print(n_ekf_start)
-		   	    	
-                            #print("success")
-                        
+			    #n_ekf_start=n_ekf_start+1
+		   	    pass
+
+
                 if n_23 >=5 and n_25 >=5 and n_26 >=5 and n_27 >=5:
 	            #print("transmit TAG")
                     #os.system("python ./DW1000RangingTAG.py")

@@ -114,10 +114,10 @@ while True:
 
   if imu.IMURead():
     data = imu.getIMUData()
-    fusionPose = data["accel"]
+    fusionPose = data["fusionPose"]
     Gyro = data["gyro"]
     t_fail_timer = 0.0
-    print(fusionPose)
+    #print(Gyro)
     if (hack - t_damp) > .1:
         roll = round(math.degrees(fusionPose[0]) - rolloff, 1)
 	pitch = round(math.degrees(fusionPose[1]) - pitchoff, 1)
@@ -125,6 +125,7 @@ while True:
         rollrate = round(math.degrees(Gyro[0]), 1)
         pitchrate = round(math.degrees(Gyro[1]), 1)
         yawrate = round(math.degrees(Gyro[2]), 1)
+	print(roll)
 	if yaw < 0.1:
             yaw = yaw + 360
 	if yaw > 360:
