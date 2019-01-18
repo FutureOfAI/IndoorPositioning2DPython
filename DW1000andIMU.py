@@ -1,3 +1,4 @@
+
 import DW1000
 import monotonic
 import DW1000Constants as C
@@ -19,14 +20,21 @@ import matplotlib.pyplot as plt
 import pylab
 import Adafruit_CharLCD as LCD
 
-
 ##############test################
 gyro_count=0
 gyro_array=[0]*1000
-LS_x_array=[0]*300
-LS_y_array=[0]*300
-x_array=[0]*300
-y_array=[0]*300
+LS_x_array=[0]*500
+LS_y_array=[0]*500
+x_array=[0]*500
+y_array=[0]*500
+x_accel=[0]*500
+y_accel=[0]*500
+Grid_count=[0]*500
+now_time=[0]*500
+time_count=[0]*500
+x_position_error=[0]*500
+y_position_error=[0]*500
+start=0
 #n_ekf=0
 #n_ekf_start=0
 # Raspberry Pi pin configuration:
@@ -44,19 +52,27 @@ lcd_rows    = 4
 lcd = LCD.Adafruit_CharLCD(lcd_rs, lcd_en, lcd_d4, lcd_d5, lcd_d6, lcd_d7,
                            lcd_columns, lcd_rows)
 ##### distance count of each Tag #####
+Grid=[0]*1
 n_23=0
+n_24=0
 n_25=0
 n_26=0
 n_27=0
+n_29=0
 ######################################
 
-###### 2D Tag position  #####
-X_2D=np.array([0,0.9,0.17,11.8,7.78,11.7]).reshape([3,2])
+###### 2D Grid_1_Tag_position  #####
+X_2D_1=np.array([7.65,0.13,0,0.9,0,5.64]).reshape([3,2])
 Y_2D=(4.65,6.75)
 #########################
 
+###### 2D Grid_2_Tag_position  #####
+X_2D_2=np.array([0,5.64,0.17,11.8,7.78,11.7]).reshape([3,2])
+#Y_2D=(4.65,6.75)
+#########################
+
 ###### 3D Tag position  #####
-X=np.array([0,0.9,2.75,0.17,11.8,2.72,7.78,11.7,2.5,7.65,0.13,2.7]).reshape([4,3])
+X=np.array([7.65,0.13,2.7,0,0.9,2.75,0,5.64,2.64,0.17,11.8,2.72,7.78,11.7,2.5,11.09,5.48,2.73]).reshape([6,3])
 Y=(0,5.64,2.73)
 
 ##### Flag #####
@@ -73,7 +89,7 @@ sentAck = False
 receivedAck = False
 LEN_DATA =25 
 data = [0] * LEN_DATA
-LEN_TAG=4
+LEN_TAG=6
 tag=[0]*LEN_TAG
 timePollAckSentTS = 0
 timePollAckReceivedTS = 0
@@ -219,35 +235,53 @@ end_count = 0
 dt =0.005
 EKF_Solution_Anc=[0]*2
 
-def spread_2D():
+def Grid_1_spread_2D():
 
-    global Solution_Anc,tag
+    global Solution_Anc
     ######Tag-------Anchor-------Distance#####
-    r0=((X_2D[0,0]-Y_2D[0])**2 + (X_2D[0,1]-Y_2D[1])**2)**(0.5) #23
-    r1=((X_2D[1,0]-Y_2D[0])**2 + (X_2D[1,1]-Y_2D[1])**2)**(0.5) #25
-    r2=((X_2D[2,0]-Y_2D[0])**2 + (X_2D[2,1]-Y_2D[1])**2)**(0.5) #27
+    r0=((X_2D_1[0,0]-Y_2D[0])**2 + (X_2D_1[0,1]-Y_2D[1])**2)**(0.5) #26
+    r1=((X_2D_1[1,0]-Y_2D[0])**2 + (X_2D_1[1,1]-Y_2D[1])**2)**(0.5) #23
+    r2=((X_2D_1[2,0]-Y_2D[0])**2 + (X_2D_1[2,1]-Y_2D[1])**2)**(0.5) #24
 
 
-    A=np.array([2*(X_2D[0,0]-X_2D[1,0]),2*(X_2D[0,1]-X_2D[1,1]),2*(X_2D[0,0]-X_2D[2,0]),2*(X_2D[0,1]-X_2D[2,1])])
+    A=np.array([2*(X_2D_1[0,0]-X_2D_1[1,0]),2*(X_2D_1[0,1]-X_2D_1[1,1]),2*(X_2D_1[0,0]-X_2D_1[2,0]),2*(X_2D_1[0,1]-X_2D_1[2,1])])
     A=A.reshape([2,2])
 
-    #b=np.array([r1**2-r0**2+X[0,0]**2-X[1,0]**2+X[0,1]**2-X[1,1]**2+X[0,2]**2-X[1,2]**2,r2**2-r0**2+X[0,0]**2-X[2,0]**2+X[0,1]**2-X[2,1]**2+X[0,2]**2-X[2,2]**2,r3**2-r0**2+X[0,0]**2-X[3,0]**2+X[0,1]**2-X[3,$
-    #b=np.array([6.172**2-4.75**2+X[0,0]**2-X[1,0]**2+X[0,1]**2-X[1,1]**2+X[0,2]**2-X[1,2]**2,9.874**2-4.75**2+X[0,0]**2-X[2,0]**2+X[0,1]**2-X[2,1]**2+X[0,2]**2-X[2,2]**2,9.437**2-4.75**2+X[0,0]**2-X[3,0]**2$
-    b=np.array([tag[1]**2-tag[0]**2+X_2D[0,0]**2-X_2D[1,0]**2+X_2D[0,1]**2-X_2D[1,1]**2,tag[3]**2-tag[0]**2+X_2D[0,0]**2-X_2D[2,0]**2+X_2D[0,1]**2-X_2D[2,1]**2])
+    b=np.array([tag[0]**2-tag[2]**2+X_2D_1[0,0]**2-X_2D_1[1,0]**2+X_2D_1[0,1]**2-X_2D_1[1,1]**2,tag[4]**2-tag[2]**2+X_2D_1[0,0]**2-X_2D_1[2,0]**2+X_2D_1[0,1]**2-X_2D_1[2,1]**2])
 
     B=np.linalg.inv(A)
 
     Solution_Anc=B.dot(b)
 
+    #print("Real_Position:%.2f  %.2f  "%(Y_2D[0],Y_2D[1]))
+    print("2D_Position:%.2f  %.2f  "%(Solution_Anc[0],Solution_Anc[1]))
+def Grid_2_spread_2D():
+
+    global Solution_Anc
+    ######Tag-------Anchor-------Distance#####
+    r0=((X_2D_2[0,0]-Y_2D[0])**2 + (X_2D_2[0,1]-Y_2D[1])**2)**(0.5) #24
+    r1=((X_2D_2[1,0]-Y_2D[0])**2 + (X_2D_2[1,1]-Y_2D[1])**2)**(0.5) #25
+    r2=((X_2D_2[2,0]-Y_2D[0])**2 + (X_2D_2[2,1]-Y_2D[1])**2)**(0.5) #27
+
+
+    A=np.array([2*(X_2D_2[0,0]-X_2D_2[1,0]),2*(X_2D_2[0,1]-X_2D_2[1,1]),2*(X_2D_2[0,0]-X_2D_2[2,0]),2*(X_2D_2[0,1]-X_2D_2[2,1])])
+    A=A.reshape([2,2])
+
+    b=np.array([tag[1]**2-tag[4]**2+X_2D_2[0,0]**2-X_2D_2[1,0]**2+X_2D_2[0,1]**2-X_2D_2[1,1]**2,tag[3]**2-tag[4]**2+X_2D_2[0,0]**2-X_2D_2[2,0]**2+X_2D_2[0,1]**2-X_2D_2[2,1]**2])
+
+    B=np.linalg.inv(A)
+
+    Solution_Anc=B.dot(b)
 
     #print("Real_Position:%.2f  %.2f  "%(Y_2D[0],Y_2D[1]))
     print("2D_Position:%.2f  %.2f  "%(Solution_Anc[0],Solution_Anc[1]))
 
 def EKF_start():
-    t1=threading.Thread(target=EKF_message)     
-    #t2=threading.Thread(target=PSI_message) 
-    t1.start()
-    #t2.start()
+    EKF_message()
+    #t1=threading.Thread(target=EKF_message)     
+    
+    #t1.start()
+    
 
 def EKF_message():
     global P00_z,tag,fusionPose,Gyro
@@ -256,12 +290,21 @@ def EKF_message():
     Imu[0]=fusionPose[0]
     Imu[1]=-fusionPose[1]
     Imu[2]=Gyro[2]
-
-    dwm[0]=tag[0]
-    dwm[1]=tag[1]
-    dwm[2]=tag[3]
-    dwm[3]=tag[2]
+    if sum([tag[2],tag[0],tag[4]]) <  sum([tag[4],tag[1],tag[3]]):
+        dwm[0]=tag[2]
+    	dwm[1]=tag[0]
+    	dwm[2]=tag[4]
+    	dwm[3]=tag[5]
+    else:
+	dwm[0]=tag[4]
+        dwm[1]=tag[1]
+        dwm[2]=tag[3]
+        dwm[3]=tag[5]
+    t = time.time()
+    print ("start",int(round(t * 1000)))
     EKF_Update()
+    print ("End",int(round(t * 1000)))
+
     time.sleep(0.01)
 
 """    
@@ -315,7 +358,7 @@ def EKF_New():
 
 def EKF_Update():
     ##### IMU_MPU9250 #####
-    global n_ekf,dwm,Imu,state,xpm_Nh,ypm_Nh,xvm_Nh,yvm_Nh,xam_Nh,yam_Nh,wzm_h,bx_h,by_h,bz_h,psi_h,end_count,P00_z,tmp,tmp_1,tmp_YX,u,select,count1,select_d,EKF_Solution_Anc,R,Xz_h,F_z,Q_z,H_D,bx_h_1,by_h_1,bz_h_1,psi_h_1,xpm_Nh_1,ypm_Nh_1,xvm_Nh_1,yvm_Nh_1,xam_Nh_1,yam_Nh_1
+    global Grid,n_ekf,dwm,Imu,state,xpm_Nh,ypm_Nh,xvm_Nh,yvm_Nh,xam_Nh,yam_Nh,wzm_h,bx_h,by_h,bz_h,psi_h,end_count,P00_z,tmp,tmp_1,tmp_YX,u,select,count1,select_d,EKF_Solution_Anc,R,Xz_h,F_z,Q_z,H_D,bx_h_1,by_h_1,bz_h_1,psi_h_1,xpm_Nh_1,ypm_Nh_1,xvm_Nh_1,yvm_Nh_1,xam_Nh_1,yam_Nh_1
     a[0]=Imu[0] #acc_x
     a[1]=Imu[1] #acc_y
     a[2]=Imu[2] #gyro_z
@@ -328,7 +371,13 @@ def EKF_Update():
     for i in range(0,4):
         if d[i]>150000:
             d[i]=d_1[i]
-    spread_2D()
+    if sum([tag[2],tag[0],tag[4]]) <  sum([tag[4],tag[1],tag[3]]):
+
+    	Grid_1_spread_2D()
+        Grid[0]=1
+    else:
+	Grid_2_spread_2D()
+        Grid[0]=2
     xpm_Nh_2=Solution_Anc[0]
     ypm_Nh_2=Solution_Anc[1]
 
@@ -413,35 +462,38 @@ def EKF_Update():
             	u = u +1
             	select = 2
         ###### IMU Estimate four Distances #####
-	"""
-    	R1m_h = ((X[0,0]-xpm_Nh)**2+(X[0,1]-ypm_Nh)**2)**(0.5)
-    	R2m_h = ((X[1,0]-xpm_Nh)**2+(X[1,1]-ypm_Nh)**2)**(0.5)
-    	R3m_h = ((X[2,0]-xpm_Nh)**2+(X[2,1]-ypm_Nh)**2)**(0.5)
-    	R4m_h = ((X[3,0]-xpm_Nh)**2+(X[3,1]-ypm_Nh)**2)**(0.5)
-    	"""
+	
+	if Grid[0]==1:
+	    print("---------Grid_1----------------")
+    	    R1m_h = ((X[0,0]-xpm_Nh)**2+(X[0,1]-ypm_Nh)**2+(X[0,2]-1.32)**2)**(0.5)
+    	    R2m_h = ((X[1,0]-xpm_Nh)**2+(X[1,1]-ypm_Nh)**2+(X[1,2]-1.32)**2)**(0.5)
+    	    R3m_h = ((X[2,0]-xpm_Nh)**2+(X[2,1]-ypm_Nh)**2+(X[2,2]-1.32)**2)**(0.5)
+    	    R4m_h = ((X[5,0]-xpm_Nh)**2+(X[5,1]-ypm_Nh)**2+(X[5,2]-1.32)**2)**(0.5)
+    	    ##### H Matrix Residual Calculator #####
+    	    r1_partial_x =-(X[0,0]-xpm_Nh)/R1m_h
+    	    r1_partial_y =-(X[0,1]-ypm_Nh)/R1m_h
+    	    r2_partial_x =-(X[1,0]-xpm_Nh)/R2m_h
+    	    r2_partial_y =-(X[1,1]-ypm_Nh)/R2m_h
+    	    r3_partial_x =-(X[2,0]-xpm_Nh)/R3m_h
+    	    r3_partial_y =-(X[2,1]-ypm_Nh)/R3m_h
+    	    r4_partial_x =-(X[5,0]-xpm_Nh)/R4m_h
+    	    r4_partial_y =-(X[5,1]-ypm_Nh)/R4m_h
+        if Grid[0]==2:
+            print("---------Grid_2----------------")
+            R1m_h = ((X[2,0]-xpm_Nh)**2+(X[2,1]-ypm_Nh)**2+(X[2,2]-1.32)**2)**(0.5)
+            R2m_h = ((X[3,0]-xpm_Nh)**2+(X[3,1]-ypm_Nh)**2+(X[3,2]-1.32)**2)**(0.5)
+            R3m_h = ((X[4,0]-xpm_Nh)**2+(X[4,1]-ypm_Nh)**2+(X[4,2]-1.32)**2)**(0.5)
+            R4m_h = ((X[5,0]-xpm_Nh)**2+(X[5,1]-ypm_Nh)**2+(X[5,2]-1.32)**2)**(0.5)
+            ##### H Matrix Residual Calculator #####
+            r1_partial_x =-(X[2,0]-xpm_Nh)/R1m_h
+            r1_partial_y =-(X[2,1]-ypm_Nh)/R1m_h
+            r2_partial_x =-(X[3,0]-xpm_Nh)/R2m_h
+            r2_partial_y =-(X[3,1]-ypm_Nh)/R2m_h
+            r3_partial_x =-(X[4,0]-xpm_Nh)/R3m_h
+            r3_partial_y =-(X[4,1]-ypm_Nh)/R3m_h
+            r4_partial_x =-(X[5,0]-xpm_Nh)/R4m_h
+            r4_partial_y =-(X[5,1]-ypm_Nh)/R4m_h
 
-    	R1m_h = ((X[0,0]-xpm_Nh)**2+(X[0,1]-ypm_Nh)**2+(X[0,2]-1.32)**2)**(0.5)
-    	R2m_h = ((X[1,0]-xpm_Nh)**2+(X[1,1]-ypm_Nh)**2+(X[1,2]-1.32)**2)**(0.5)
-    	R3m_h = ((X[2,0]-xpm_Nh)**2+(X[2,1]-ypm_Nh)**2+(X[2,2]-1.32)**2)**(0.5)
-    	R4m_h = ((X[3,0]-xpm_Nh)**2+(X[3,1]-ypm_Nh)**2+(X[3,2]-1.32)**2)**(0.5)
-
-    	##### H Matrix Residual Calculator #####
-    	r1_partial_x = 0
-    	r1_partial_y = 0
-    	r2_partial_x = 0
-    	r2_partial_y = 0
-    	r3_partial_x = 0
-    	r3_partial_y = 0
-    	r4_partial_x = 0
-    	r4_partial_y = 0
-    	r1_partial_x =-(X[0,0]-xpm_Nh)/R1m_h
-    	r1_partial_y =-(X[0,1]-ypm_Nh)/R1m_h
-    	r2_partial_x =-(X[1,0]-xpm_Nh)/R2m_h
-    	r2_partial_y =-(X[1,1]-ypm_Nh)/R2m_h
-    	r3_partial_x =-(X[2,0]-xpm_Nh)/R3m_h
-    	r3_partial_y =-(X[2,1]-ypm_Nh)/R3m_h
-    	r4_partial_x =-(X[3,0]-xpm_Nh)/R4m_h
-    	r4_partial_y =-(X[3,1]-ypm_Nh)/R4m_h
     	##### H Matrix Data #####
     	H=np.array([r1_partial_x,0,0,r1_partial_y,0,0,0,0,r2_partial_x,0,0,r2_partial_y,0,0,0,0,r3_partial_x,0,0,r3_partial_y,0,0,0,0,r4_partial_x,0,0,r4_partial_y,0,0,0,0])
         #H=np.array([r1_partial_x,0,0,r1_partial_y,0,0,0,0,r2_partial_x,0,0,r2_partial_y,0,0,0,0,r3_partial_x,0,0,r3_partial_y,0,0,0,0,0,0,0,0,0,0,0,0])
@@ -556,11 +608,28 @@ def EKF_Update():
     EKF_Solution_Anc[1]=ypm_Nh
 
     print("EKF_Position:%.2f  %.2f  "%(EKF_Solution_Anc[0],EKF_Solution_Anc[1]))
+    #print("Accel_x:%.2f Accel_y:%.2F"%(fusionPose[0],-fusionPose[1]))
+    t = time.time()
+    nowTime = lambda:int(round(t * 1000))
+    nowTime=np.array([nowTime()])
+    #print(nowTime[0])
+
+    now_time[end_count]=nowTime[0]
     x_array[end_count]=EKF_Solution_Anc[0]
     y_array[end_count]=EKF_Solution_Anc[1]
     LS_x_array[end_count]=Solution_Anc[0]
     LS_y_array[end_count]=Solution_Anc[1]
-
+    x_accel[end_count]=fusionPose[0]
+    y_accel[end_count]=-fusionPose[1]
+    x_position_error[0]=0
+    y_position_error[0]=0
+    time_count[0]=0
+    if end_count>=1:
+        x_position_error[end_count]=x_array[end_count]-x_array[end_count-1]
+        y_position_error[end_count]=y_array[end_count]-y_array[end_count-1]
+	time_count[end_count]=now_time[end_count]-now_time[end_count-1]
+    #print(time_count[end_count])
+    #Grid_count[end_count]=Grid[0]
     lcd_show="X:%.2f"%(float(x_array[end_count]))+"  m" + '\n' + "Y:%.2f"%(float(y_array[end_count]))+"  m"
     lcd.clear()
     lcd.message(lcd_show)
@@ -579,9 +648,10 @@ def EKF_Update():
     #pylab.title("EKF Position",fontsize=24)
 
 
-    if end_count==76:
-	print("------------------save-------------------")
-        np.savetxt('EKF_data_square.csv',(x_array,y_array) , delimiter=',')
+    if end_count==116:
+	print("--------------------------------------------------save-------------------")
+        np.savetxt('EKF_data_KNN.csv',(x_array,y_array,x_position_error,y_position_error,time_count,x_accel,y_accel) , delimiter=',')
+        #np.savetxt('EKF_data_grid.csv',(x_array,y_array,Grid_count) , delimiter=',')
         #np.savetxt('LS_data_straight.csv',(LS_x_array,LS_y_array) , delimiter=',')
 
         #np.savetxt('data_straight.csv',(x_array,y_array) , delimiter=',')
@@ -725,7 +795,7 @@ def computeRangeAsymmetric():
 
 def loop():
     
-    global gyro_array,gyro_count,sentAck,n_ekf_start,n_23,n_25,n_26,n_27, receivedAck, timePollAckSentTS, timePollReceivedTS, timePollSentTS, timePollAckReceivedTS, timeRangeReceivedTS, protocolFailed, data, expectedMsgId,expectedMsgID, timeRangeSentTS,Same_tag_flag,DistanceFinish_Flag,Position_Flag,EKF_start,EKF_message,EKF_New,EKF_Update
+    global gyro_array,gyro_count,sentAck,n_ekf_start,start,n_23,n_24,n_25,n_26,n_27,n_29,receivedAck, timePollAckSentTS, timePollReceivedTS, timePollSentTS, timePollAckReceivedTS, timeRangeReceivedTS, protocolFailed, data, expectedMsgId,expectedMsgID, timeRangeSentTS,Same_tag_flag,DistanceFinish_Flag,Position_Flag,EKF_start,EKF_message,EKF_New,EKF_Update
 
     if Position_Flag==0:
         
@@ -745,8 +815,12 @@ def loop():
             	#plt.savefig('gyro.png')
 		#pylab.close()
             #print("fffff",fusionPose[0],fusionPose[1])
+            #print("[%s]"%(time.ctime(time.time())))
+	    #t = time.time()
+	    #nowTime = lambda:int(round(t * 10000))
+	    #print(nowTime)
 	    time.sleep(poll_interval*1.0/1000.0)
-            #time.sleep(0.1)
+            time.sleep(0.01)
 
 
         if (sentAck == False and receivedAck == False):
@@ -766,8 +840,8 @@ def loop():
             receivedAck = False
             data = DW1000.getData(LEN_DATA)
             msgId = data[0]
-            #print(data[16])		      
-        
+            #print(data[16])
+
             if msgId == C.POLL:
             	DistanceFinish_Flag =1
             	Same_tag_flag = data[16]
@@ -793,6 +867,9 @@ def loop():
                     	if data[16]==23:
                             print("Tag: %.2d"%(data[16]))
                             print("Distance1: %.2f m" %(distance))
+		            #print("[%s]"%(time.ctime(time.time())))
+			    t = time.time()
+			    #print (int(round(t * 1000)))
                             n_23=n_23+1
 			    if distance <12:
                             #tag[0]=((n_23-1)*tag[0]+distance)/n_23
@@ -801,6 +878,7 @@ def loop():
                     	if data[16]==25:
                             print("Tag: %.2d"%(data[16]))
                             print("Distance2: %.2f m" %(distance))
+                            #print("[%s]"%(time.ctime(time.time())))
                             n_25=n_25+1
                             if distance <12:
                             #tag[1]=((n_25-1)*tag[1]+distance)/n_25
@@ -819,12 +897,31 @@ def loop():
                             if distance <12:
                             #tag[3]=((n_27-1)*tag[3]+distance)/n_27
 			    	tag[3]=distance
+			if data[16]==24:
+                            print("Tag: %.2d"%(data[16]))
+                            print("Distance4: %.2f m" %(distance))
+                            n_24=n_24+1
+                            if distance <12:
+                            #tag[4]=((n_24-1)*tag[4]+distance)/n_24
+                                tag[4]=distance
+			if data[16]==29:
+                            print("Tag: %.2d"%(data[16]))
+                            print("Distance4: %.2f m" %(distance))
+                            n_29=n_29+1
+                            if distance <12:
+                            #tag[5]=((n_29-1)*tag[5]+distance)/n_29
+                                tag[5]=distance
 
 
-                        if tag[0] !=0 and tag[1]!=0 and tag[2] !=0 and tag[3]!=0:
 
 
+
+
+                        if tag[0] !=0 and tag[1]!=0 and tag[2] !=0 and tag[3]!=0 and tag[4]!=0 and tag[5]!=0 and start==0:
+
+			    
 			    EKF_start()
+			    #start=1
 			    #n_ekf_start=n_ekf_start+1
 		   	    pass
 

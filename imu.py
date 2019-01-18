@@ -74,15 +74,7 @@ heading_sin_total = 0.0
 heading_cos_run = [0] * 30
 heading_sin_run = [0] * 30
 
-"""
-def imu():
-    if imu.IMURead():
-      data = imu.getIMUData()
-      Gyro = data["gyro"]
-      print(Gyro)
-      time.sleep(poll_interval*1.0/1000.0)
-      time.sleep(0.1)
-"""
+
 
 
 while True:
@@ -117,7 +109,7 @@ while True:
     fusionPose = data["fusionPose"]
     Gyro = data["gyro"]
     t_fail_timer = 0.0
-    #print(Gyro)
+    print(Gyro)
     if (hack - t_damp) > .1:
         roll = round(math.degrees(fusionPose[0]) - rolloff, 1)
 	pitch = round(math.degrees(fusionPose[1]) - pitchoff, 1)
@@ -125,7 +117,7 @@ while True:
         rollrate = round(math.degrees(Gyro[0]), 1)
         pitchrate = round(math.degrees(Gyro[1]), 1)
         yawrate = round(math.degrees(Gyro[2]), 1)
-	print(roll)
+	#print(roll)
 	if yaw < 0.1:
             yaw = yaw + 360
 	if yaw > 360:
@@ -152,7 +144,7 @@ while True:
             heading = heading + 360
 	if heading > 360:
 	    heading = heading - 360
-
+	#print(magnetic_deviation)
         t_damp = hack
         t_one += 1
         if t_one == 10:
@@ -210,19 +202,4 @@ while True:
             t_print = hack
 	    #print(imu_sentence)
 
-"""
-try:
-    while 1:
-        
-	
-        if imu.IMURead():
-            data = imu.getIMUData()
-            Gyro = data["gyro"]
-            print(Gyro)
-            time.sleep(poll_interval*1.0/1000.0)
-            time.sleep(0.1)
-	
-except KeyboardInterrupt:
-    f.close()
-"""
 

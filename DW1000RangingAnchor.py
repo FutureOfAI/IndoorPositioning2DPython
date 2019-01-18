@@ -333,7 +333,7 @@ def loop():
 		    	#timePollReceivedTS = DW1000.getReceiveTimestamp()
                  #os.system("python ./DW1000RangingTAG.py")
 		    #import DW1000RangingTAG
-                    Position_Flag=1
+                    Position_Flag=0
 		
                 else:
                     transmitRangeFailed()
