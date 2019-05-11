@@ -83,7 +83,7 @@ while True:
 
   # if it's been longer than 5 seconds since last print
   if (hack - t_damp) > 5.0:
-      
+ 
       if (hack - t_fail) > 1.0:
           t_one = 0
           t_three = 0
@@ -106,10 +106,10 @@ while True:
 
   if imu.IMURead():
     data = imu.getIMUData()
-    fusionPose = data["fusionPose"]
+    fusionPose = data["accel"]
     Gyro = data["gyro"]
-    t_fail_timer = 0.0
-    print(Gyro)
+    #t_fail_timer = 0.0
+    print(fusionPose)
     if (hack - t_damp) > .1:
         roll = round(math.degrees(fusionPose[0]) - rolloff, 1)
 	pitch = round(math.degrees(fusionPose[1]) - pitchoff, 1)
